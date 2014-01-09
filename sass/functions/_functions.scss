@@ -1,0 +1,7 @@
+/*
+
+*/
+
+@function calcTileDim($tilesPerRow, $totalWidth) {
+	@return #{$totalWidth / $tilesPerRow};
+}

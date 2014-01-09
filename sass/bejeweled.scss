@@ -1,0 +1,71 @@
+/*
+
+	Bejeweled Styling
+
+*/
+
+@import "base";
+
+/* Global General Styling
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+ul, ol {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/* General Styling
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+.wrapper ,
+.page_heading {
+	width: $wrapperWidth;
+	margin: auto;
+}
+
+.page_heading {
+	padding: 20px 0;	
+}
+
+/* Tileboard Styling
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+.gameboard {
+	position: relative;
+}
+
+.tile {
+	border: 1px solid #ccc;
+	box-sizing: border-box;
+	text-align: center;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 10;
+	
+	&:hover {
+		cursor: pointer;
+	}
+
+	&.selected {
+		border: 4px solid green;
+	}
+
+	&.gem_match {
+		border: 5px dotted blue;
+	}
+
+	&.remove {
+		border: 2px dashed black;
+	}
+
+	&.current {
+		border: 3px solide pink;
+	}
+}
+
+/* Scoreboard Styling
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+.score {
+	font-size: 18px;
+	font-weight: bold;
+	margin: 0 5px;
+}
