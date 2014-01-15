@@ -35,6 +35,7 @@ ul, ol {
 .tile {
 	border: 1px solid #ccc;
 	box-sizing: border-box;
+  font-size: 12px;
 	text-align: center;
 	position: absolute;
 	top: 0;
@@ -58,7 +59,7 @@ ul, ol {
 	}
 
 	&.current {
-		border: 3px solide pink;
+		border: 3px solid pink;
 	}
 }
 

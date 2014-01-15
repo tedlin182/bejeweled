@@ -40,6 +40,15 @@
 			// Set container for removed gems
 			this.removedGems = {};
 
+			// Keep track to see if gem streaks exist
+			this.streaksExist = false;
+
+			// Track if done creating new gems
+			this.creatingGems = false;
+
+			// See if valid moves exist
+			this.validMovesExist = false;
+
 			// Invoke _prep and _activate
 			this._prep()._activate();
 
@@ -57,8 +66,6 @@
 		_activate: function () {
 			var self = this;
 
-			// On "remove" event, invoke removeGem() method
-
 			self.$targ.on({
 				// This removes the streaks of gems
 				"removeGems": function (e, data){
@@ -68,20 +75,55 @@
 				"moveGems": function (e, data) {
 					self.moveGems(data.removedGems);
 				},
+				// Triggers scan for streaks
+				"scanRowsCols": function (e, data) {
+					// After new gems are created and added,
+					if (data) {
+						self.scanRowsCols(data.gem);
+					} else {
+						console.log("scanning with no data");
+						self.scanRowsCols();
+					}
+				},
+				// Adds gem to gameboard
+				"addGems": function (e, data) {
+					// Add gems to board
+					self.$targ.prepend(data.gems);
+
+					// This should be triggered after ALL gems have been
+					// created and prepended to the board
+					// Trigger another scan for streaks
+					if (!self.creatingGems) {
+						self.$targ.trigger("scanRowsCols");
+					}
+				},
+				"createNewGem": function (e, data) {
+					if (data.callback) {
+						data.callback(self.createNewGems(data.row, data.col, data.gemPos));
+					}
+				},
 				// Gem swap
 				"swap": function (e, data) {
 					var gems = data.gems,
 							i = 0,
-							len = gems.length - 1,
-							gem;
+							len = gems.length - 1;
 
-							console.log(gems);
-					// Cycle through gems that were swapped and scan both columns and rows
-					// for each gem for streaks
+					// Then trigger swapGems
+					self.swapGems(gems[0], gems[1]);
+
+					// Then scanRows and Cols
 					for (; i <= len; i++) {
-						gem = gems[i];
-						self.scanRowsCols(".row_" + gem[1], ".col_" + gem[2]);
+						self.$targ.trigger("scanRowsCols", { gem: gems[i].getAttribute("data-position")});
 					}
+
+					// If a streak is found, then remove the gems
+					if (self.streaksExist) {
+						self.$targ.trigger("removeGems");
+					} else {
+						// Otherwise swap gems back
+						self.swapGems(gems[0], gems[1]);
+					}
+
 				}
 			});
 
@@ -92,6 +134,9 @@
 
 			return self;
 		},
+		_getGemPosition: function (row, col) {
+				return (row * this.gemsPerRow) - (this.gemsPerRow - col);
+		},
 		// To easily grab gem info from gemset
 		_fetchTileInfo: function (tile) {
 			return this.gemset[tile.getAttribute("data-position")];
@@ -101,154 +146,6 @@
 			var randomizer = Math.floor((Math.random() * (this.gemColors.length - 1)) + 1);
 
 			return this.gemColors[randomizer];
-		},
-		_hasHorizontalStreak: function (row) {
-			var $row = $(row),
-					$gem,
-					gemPos,
-					gemToMatch = null,
-					gemColor,
-					streak = 1,
-					i = 1,
-					len = $row.length;
-
-			// With updated this.gemset, determine gems to scan, cycle through to determine
-			// streaks and mark them for removal
-
-			// Loop through all gems in the row
-			for (; i <= len; i++) {
-				// Since the index order of the swapped gems doesn't swap evenly when moved
-				// to a different row, use the "col_[x]" class to traverse the row in the correct order
-				$gem = $(row + ".col_" + i);
-				gemPos = $gem.attr("data-position");
-
-//				if (!this.gemset[gemPos]) {
-//				console.log("_hasHorizontalStreak");
-//				console.log("gempos: " + gemPos);
-//				console.log(this.gemset);
-//				}
-
-				gemColor = this.gemset[gemPos][0];
-				
-				$gem.text(gemPos);
-
-				// If gemToMatch not set OR if gem color doesn't match gemToMatch
-				if (!gemToMatch || gemToMatch !== gemColor) {
-					// Reset gemToMatch to current gem color
-					gemToMatch = gemColor;
-
-					// If streak didn't reach 3 or more, then remove "match" class from 
-					// gems that aren't part of streak (this is marked with "remove" class)
-					if (streak < 3) {
-						$(row + ".gem_match").not(".remove").removeClass("gem_match");
-					}
-
-					// Restart streak and mark current gem to "match" EXCEPT if it's last gem
-					// in row
-					if (i !== len) {
-						$gem.addClass("gem_match");
-					}
-
-					// Also reset streak to 1
-					streak = 1;
-				} else if (gemToMatch === gemColor) {
-					// Increase streak
-					streak++;
-
-					// Mark current gem as "match"
-					$gem.addClass("gem_match");
-
-					// Once hit streak of 3 or more, add "remove" class to current gem
-					// AND previous gems. By this point there shouldn't be any other gems
-					// marked as "match" as it would have cleared with the above check
-						
-					// Once streak hits 3, mark previous "matched" gems for removal
-					if (streak === 3) {
-						$(row + ".gem_match").addClass("remove");
-					} else if (streak > 3) {
-						// Every matching gem after that, mark to "remove" individually
-						$gem.addClass("remove");
-					}
-				}
-
-				// If at the last gem in row, clear out non-streak matching gems
-				if (i === len) {
-					$(row + ".gem_match").not(".remove").removeClass("gem_match");
-				}
-			}
-			
-			return this;
-		},
-		_hasVerticalStreak: function (col) {
-			var $col = $(col),
-					$gem,
-					gemPos,
-					gemToMatch = null,
-					gemColor,
-					streak = 1,
-					i = 1,
-					len = $col.length;
-			
-			// Loop through all gems in the row
-			for (; i <= len; i++) {
-				$gem = $(col + ".row_" + i);
-				gemPos = $gem.attr("data-position");
-
-
-//				if (!this.gemset[gemPos]) {
-//				console.log("_hasVerticalStreak");
-//				console.log("gempos: " + gemPos);
-//				console.log(this.gemset);
-//				}
-
-				gemColor = this.gemset[gemPos][0];
-
-				// If gemToMatch not set OR if gem color doesn't match gemToMatch
-				if (!gemToMatch || gemToMatch !== gemColor) {
-					// Reset gemToMatch to current gem color
-					gemToMatch = gemColor;
-
-					// If streak didn't reach 3 or more, then remove "match" class from 
-					// gems that aren't part of streak (this is marked with "remove" class)
-					if (streak < 3) {
-						$(col + ".gem_match").not(".remove").removeClass("gem_match");
-					}
-
-					// Restart streak and mark current gem to "match" EXCEPT if it's last gem
-					// in row
-					if (i !== len) {
-						$gem.addClass("gem_match");
-					}
-
-					// Also reset streak to 1
-					streak = 1;
-				} else if (gemToMatch === gemColor) {
-					// Increase streak
-					streak++;
-
-					// Mark current gem as "match"
-					$gem.addClass("gem_match");
-
-					// Once hit streak of 3 or more, add "remove" class to current gem
-					// AND previous gems. By this point there shouldn't be any other gems
-					// marked as "match" as it would have cleared with the above check
-						
-					// Once streak hits 3, mark previous "matched" gems for removal
-					if (streak === 3) {
-						$(col + ".gem_match").addClass("remove");
-					} else if (streak > 3) {
-						// Every matching gem after that, mark to "remove" individually
-						$gem.addClass("remove");
-					}
-				}
-
-				// If at the last gem in row, clear out non-streak matching gems
-				if (i === len) {
-					$(col + ".gem_match").not(".remove").removeClass("gem_match");
-				}
-			}
-			
-			return this;
 		},
 		_isAdjacentGem: function (gem, otherGem) {
 			var firstGemPos = gem.getAttribute("data-position"),
@@ -264,16 +161,48 @@
 
 			return isAdjacent;
 		},
+		_updateGemset: function (gem, otherGem) {
+			var gemInGemset = this.gemset[gem.getAttribute("data-position")],
+					otherGemInGemset = this.gemset[otherGem.getAttribute("data-position")],
+					gemColor = gemInGemset[0],
+					otherGemColor = otherGemInGemset[0];
+
+			// Swap colors
+			gemInGemset[0] = otherGemColor;
+			otherGemInGemset[0] = gemColor;
+
+			return this;
+		},
+		_updateGemInfo: function (gemToUpdate, newPos) {
+			var gemPos = gemToUpdate.getAttribute("data-position"),
+					gemInSet = this.gemset[gemPos],
+					newRow = this.gemset[newPos][1];
+
+			// Row => current row (this.gemset[gemPos][1]) + removedCount
+			gemToUpdate.className = "tile row_" + newRow + " col_" + gemInSet[2];
+
+			// New data-position
+			gemToUpdate.setAttribute("data-position", gemPos + newPos);
+
+			// Update gem ID
+			gemToUpdate.id = "tile_gemPos_" + newPos;
+
+			// Update color of gem in gemset
+			this.gemset[newPos][0] = gemInSet[0];
+
+			return this;
+		},
 		// This should only happen on successful swap (and then also removal)
 		_updateSwappedTilesInfo: function (gem, otherGem) {
 			var gemPos = gem.getAttribute("data-position"),
 					otherGemPos = otherGem.getAttribute("data-position"),
 					gemClass = gem.className,
 					otherGemClass = otherGem.className,
-					gemColor = this._fetchTileInfo(gem)[0],
-					otherGemColor = this._fetchTileInfo(otherGem)[0],
 					gemId = gem.id,
 					otherGemId = otherGem.id;
+
+			// Update gemset
+			this._updateGemset(gem, otherGem);
 
 			// Update tile ID with gem position
 			gem.id = otherGemId;
@@ -282,10 +211,6 @@
 			// Update tile classes
 			gem.className = otherGemClass;
 			otherGem.className = gemClass;
-
-			// Update gemset gem color/type object after gems have swapped
-			this.gemset[gemPos][0] = otherGemColor;
-			this.gemset[otherGemPos][0] = gemColor;
 
 			// Update tile data-position
 			gem.setAttribute("data-position", otherGemPos);
@@ -307,39 +232,49 @@
 
 			// Need reference to gems removed and new gems take their spot
 			// both in the DOM and in this.gemset
-			// gem = "<div id=\"tile_gemPos_" + gemPos + "\" class=\"tile " + gemRow + " " + gemCol + "\" style=\"background-color: " + gemColor + "; top: " + gemYPos+ "px; left: " + gemXPos + "px; width: " + this.gemDimensions + "px; height: " + this.gemDimensions + "px; \" data-position=\"" + gemPos + "\"><\/div>";
+			gem = "<div id=\"tile_gemPos_" + gemPos + "\" class=\"tile " + gemRow + " " + gemCol + "\" style=\"background-color: " + gemColor + "; top: " + gemYPos+ "px; left: " + gemXPos + "px; width: " + this.gemDimensions + "px; height: " + this.gemDimensions + "px; \" data-position=\"" + gemPos + "\">" + gemPos + "<\/div>";
 
-			// Create gem and start gem position above gameboard
-			gem = "<div id=\"tile_gemPos_" + gemPos + "\" class=\"tile " + gemRow + " " + gemCol + "\" style=\"background-color: " + gemColor + "; top: -" + this.gemDimensions + "px; left: " + gemXPos + "px; width: " + this.gemDimensions + "px; height: " + this.gemDimensions + "px; \" data-position=\"" + gemPos + "\"><\/div>";
-
-			// Add gem to board
-			this.$targ.prepend(gem);
-
-			// Animate gem into new position
-			$("#tile_gemPos_" + gemPos).animate({top: gemYPos + "px"}, 600);
-
+			// TODO: Should return gem with top === -gemHeight and new top position
+			// so can animate down
 			return gem;
 		},
 		createGameboard: function () {
-			var col = 1,
+			var self = this,
+					col = 1,
 					row = 1,
 					gemPos = 1,
-					gems = "";
+					newGems = "";
+
+			// Change creatingGems state to true when creating gameboard
+			self.creatingGems = true;
 
 			// Start from col 1 and go to max # gems per row
 			// Once reach end, reset and go to next row until reach
 			// last row (ie. row === this.gemsPerRow)
-			while (col <= this.gemsPerRow) {
+			while (col <= self.gemsPerRow) {
+				// Trigger createNewGem event and pass in
+				self.$targ.trigger("createNewGem", {
+					row: row,
+					col: col,
+					gemPos: gemPos,
+					callback: function (gem) {
+						// Once reach last gem to create, change
+						// state of creatingGems
+						if ((row === self.gemsPerRow) && (col === self.gemsPerRow)) {
+							self.creatingGems = false;
+						}
 
-				// Create gem element
-				// gems += this.createNewGems(row, col, gemPos);
-				this.createNewGems(row, col, gemPos);
+						// Trigger addGems to add gem AND to scan rows and columns for
+						// streaks ONLY after done creating gems
+						self.$targ.trigger("addGems", { gems: gem });
+					}
+				});
 
 				// Increment gem position
 				gemPos++;
 
 				// When reach end of row, go to next row as long as not on last row
-				if (col === this.gemsPerRow && row !== this.gemsPerRow) {
+				if (col === self.gemsPerRow && row !== self.gemsPerRow) {
 					// Reset col to 1
 					col = 1;
 
@@ -351,36 +286,206 @@
 				}
 			}
 
-			// Add gems to target gameboard
-			// this.$targ.append(gems);
+			console.log("After create gameboard");
+			console.log(self.streaksExist);
+			// If streaks exist, trigger removeGems
+			if (self.streaksExist) {
+				self.$targ.trigger("removeGems");
+			}
 
-			this.scanRowsCols();
+			return self;
+		},
+		horizStreakCheck: function (gemPos) {
+			// FOR CREATE GAMEBOARD
+			// gemPos will always start at first gem in row
+
+
+//			console.log("start gem: " + gemPos);
+//			return;
+
+
+			var gem = this.gemset[gemPos],
+				gemRow = gem[1],
+				startGem = gem[2] === this.gemsPerRow ? gemPos - (this.gemsPerRow - 1) : gemPos - ((gemPos % this.gemsPerRow) - 1),
+				$currentGem,
+				// From the beginning, the color to match should start off
+				// being the first gem in the column
+				colorToMatch,
+				currentGemColor,
+				// Start at second row
+				col = 1,
+				streak;
+
+			while (col <= this.gemsPerRow) {
+				// Grab the current gem element via data-position
+				$currentGem = $(".tile[data-position=\"" + startGem + "\"]");
+
+				// Grab current focused gem color
+				currentGemColor = this.gemset[startGem][0];
+
+				// If current gem color matches the previous gem color
+				if (currentGemColor === colorToMatch) {
+					// Increment streak counter
+					streak++;
+
+					// Mark this gem as a "match"
+					$currentGem.addClass("gem_match");
+
+					if (streak === 3) {
+						// Once hit streak of 3 gems, mark those gems
+						// for removal. This class will ensure they don't
+						// get cleared out.
+						$(".gem_match.row_" + gemRow).addClass("remove");
+
+						console.log(document.querySelectorAll(".gem_match.row_" + gemRow));
+
+						// Once hit this point there is a streak, so now this
+						// flag can be accessed by all methods
+						this.streaksExist = true;
+					} else if (streak > 3) {
+						// Once hit past 3 gems in a row, then just mark
+						// current gem for removal
+						$currentGem.addClass("remove");
+					}
+				} else {
+					// If it doesn't match, then reset colorToMatch
+					// to current gem's color
+					// Grab current focused gem color
+					colorToMatch = this.gemset[startGem][0];
+
+					// If streak didn't reach 3 or more, then remove "match" class from
+					// gems that aren't part of streak (this is marked with "remove" class)
+					if (streak < 3) {
+						$(".gem_match.row_" + gemRow).not(".remove").removeClass("gem_match");
+					}
+
+					// Restart streak and mark current gem to "match" EXCEPT if it's last gem
+					// in row
+					if (col !== this.gemsPerRow) {
+						$currentGem.addClass("gem_match");
+					}
+
+					// Also reset streak to 1
+					streak = 1;
+				}
+
+				// If at the last gem in column, clear out non-streak matching gems
+				if (col === this.gemsPerRow) {
+					$(".gem_match.row_" + gemRow).not(".remove").removeClass("gem_match");
+				}
+
+				// Increment position to next gem in row by adding 1
+				// to startGem position. This will traverse through each
+				// subsequent gem in the column in order until the last column
+				startGem++;
+
+				// Move to next gem in row
+				col++;
+			}
 
 			return this;
 		},
-		scanRowsCols: function (row, col) {
-			var i = 1;
+		vertStreakCheck: function (gemPos) {
+			var gem = this.gemset[gemPos],
+					gemCol = gem[2],
+					startGem = gemPos - ((gem[1] - 1) * this.gemsPerRow),
+					$currentGem,
+					// From the beginning, the color to match should start off
+					// being the first gem in the column
+					colorToMatch,
+					currentGemColor,
+					// Start at second row
+					row = 1,
+					streak;
+
+			while (row <= this.gemsPerRow) {
+				// Grab the current gem element via data-position
+				$currentGem = $(".tile[data-position=\"" + startGem + "\"]");
+
+				// Grab current focused gem color
+				currentGemColor = this.gemset[startGem][0];
+
+				// If current gem color matches the previous gem color
+				if (currentGemColor === colorToMatch) {
+					// Increment streak counter
+					streak++;
+
+					// Mark this gem as a "match"
+					$currentGem.addClass("gem_match");
+
+					if (streak === 3) {
+						// Once hit streak of 3 gems, mark those gems
+						// for removal. This class will ensure they don't
+						// get cleared out.
+						$(".gem_match.col_" + gemCol).addClass("remove");
+
+						// Once hit this point there is a streak, so now this
+						// flag can be accessed by all methods
+						this.streaksExist = true;
+					} else if (streak > 3) {
+						// Once hit past 3 gems in a row, then just mark
+						// current gem for removal
+						$currentGem.addClass("remove");
+					}
+				} else {
+					// If it doesn't match, then reset colorToMatch
+					// to current gem's color
+					colorToMatch = this.gemset[startGem][0];
+
+					// If streak didn't reach 3 or more, then remove "match" class from
+					// gems that aren't part of streak (this is marked with "remove" class)
+					if (streak < 3) {
+						$(".gem_match.col_" + gemCol).not(".remove").removeClass("gem_match");
+					}
+
+					// Restart streak and mark current gem to "match" EXCEPT if it's last gem
+					// in row
+					if (row !== this.gemsPerRow) {
+						$currentGem.addClass("gem_match");
+					}
+
+					// Also reset streak to 1
+					streak = 1;
+				}
+
+				// If at the last gem in column, clear out non-streak matching gems
+				if (row === this.gemsPerRow) {
+					$(".gem_match.col_" + gemCol).not(".remove").removeClass("gem_match");
+				}
+
+				// Increment position to next gem in column by adding gemsPerRow
+				// to startGem position. This will traverse through each
+				// subsequent gem in the column in order until the last row
+				startGem += this.gemsPerRow;
+
+				// Move to next gem in col
+				row++;
+			}
+
+			return this;
+		},
+		scanRowsCols: function (gemPos) {
+			var i = 1,
+					rowStartGem = i;
 
 			// If no row or col param is specified, then scan all rows and columns
-			if (!row || !col) {
+			if (!gemPos) {
 				for (; i <= this.gemsPerRow; i++) {
-//					console.log("i: " + i);
-					this._hasHorizontalStreak(".row_" + i);
-					this._hasVerticalStreak(".col_" + i);
+					this.horizStreakCheck(rowStartGem);
+					this.vertStreakCheck(i);
+
+					// Grab start gem in next row
+					rowStartGem += this.gemsPerRow;
 				}
 			} else {
-				this._hasHorizontalStreak(row);
-				this._hasVerticalStreak(col);
+				this.horizStreakCheck(gemPos);
+				this.vertStreakCheck(gemPos);
 			}
 
-			// If there are gems marked to be remove, trigger
-			// "remove" event
-			if (this.$targ.find(".remove").length > 0) {
-				this.$targ.trigger("removeGems");
-			}
-
-			// TODO: If no possible streaks can be made with a swap, then
-			// 			 prompt user with message and create new gameboard
+			// If streaks exist, trigger removeGems
+//			if (this.streaksExist) {
+//				this.$targ.trigger("removeGems");
+//			}
 
 			return this;
 		},
@@ -390,20 +495,17 @@
 					gemPos,
 					col,
 					row,
-					gemInGemset,
-					removedGem;
+					gemInGemset;
 
-        console.log(self.$targ.find(".remove"));
 			[].forEach.call(self.$targ.find(".remove"), function (gem, idx, arr) {
 				gemPos = gem.getAttribute("data-position");
 				gemInGemset = self.gemset[gemPos];
+
 				// The gem row will be used to help start
 				row = gemInGemset[1];
 
 				// The gem column will be the key in the removedGems object for reference
 				col = gemInGemset[2];
-
-//				removedGem = removedGems[col];
 
 				// Fade out gems to be removed and then remove them
 				$(gem).fadeOut(300, function (e) {
@@ -412,10 +514,6 @@
 
 					// Also trigger scoreboard
 					self.scoreboard.trigger("changeScore", { points: 10 });
-
-					// TODO: Should I trigger "removeGem" event and remove method
-					//			 removes 1 gem at a time? Then as
-
 				});
 
 				// Keep track of what row the last gem removed in column is
@@ -424,9 +522,13 @@
         // current gem's row
         // Simply want to grab the bottom-most remove gem in each column
         if ((removedGems[col] && (removedGems[col][0]< row)) || !removedGems[col]) {
-    				removedGems[col] = [row, col];
+    				removedGems[col] = [row, col, gemPos];
         }
       });
+
+			// Reset streaksExist flag once streak gems have been
+			// removed.
+			self.streaksExist = false;
 
 			// After remove all gems, trigger moveGems to shift all gems into place
 			self.$targ.trigger("moveGems", {removedGems: removedGems});
@@ -435,101 +537,94 @@
 		},
 		moveGems: function (removedGems) {
 			var self = this,
-					col,
 					gem,
-					removedGem,
 					newGems = "";
 
-					console.log(removedGems);
-//                         return;
-
+			console.log("=-=-=-=-=-=-MOVE GEMS=-=-=-=-=-=-");
 
 			// As cycle through all removedGems, each gem is passed
 			// into moveGem to help shift all gems in the the removed gem column
 			// to it's appropriate spot
 			var moveGem = function (gemCol) {
 				var col = gemCol[1],
-						$cols = $(".col_" + col),
-						btmRow = gemCol[0] - 1,			// Index of bottom-most removed gem in column
-						i = btmRow,
+						btmMostGemPos = gemCol[2],
 						$colGem,
-						removedCount = 1,
+						removedCount = 0,
 						newGems = "";
 
-				console.log("btmRow: " + btmRow);
-				console.log("col: " + col);
-				console.log("i: " + i);
-				console.log($cols);
+//				console.log("btmMostGemPos: " + btmMostGemPos);
 
-				// Starting at bottom-most removed gem, loop through gems in the column
-				for (; i >= 0; i--) {
-					$colGem = $($cols[i]);
-					console.log($cols[i]);
-					// If gem is marked to be removed, increment count
+				// Another option that will avoid having to deal with changing
+				// element orders when swap and query DOM is to just traverse through
+				// gems in column by ID via gem pos -= this.gemsPerRow
+
+				while (btmMostGemPos > 0) {
+					// Grab gem in column starting at bottom-most removed gem
+					$colGem = $("#tile_gemPos_" + btmMostGemPos);
+
+					// If gem is to be removed
 					if ($colGem.hasClass("remove")) {
-						// After the first removed gem, increment counter
-						if (i < btmRow) {
-							removedCount++;
-						}
-							
-						// console.log("removedCount: " + removedCount);
-						// console.log("col: " + col);
-						// console.log("gemPos: " + $colGem.attr("data-position"));
+						// Increment removedCount by 1
+						removedCount++;
 
-						// Replace removed gem with new ones
-						// newGems += self.createNewGems(removedCount, col, $colGem.attr("data-position"));
-						self.createNewGems(removedCount, col, $colGem.attr("data-position"));
+						// As remove gems, you can traverse column gems using removedCount
+						// This will help determine which position the newly created gems
+						// will fill since all gems in the column shift down to fill the
+						// gaps once gems are removed.
+						// Create new gems but don't append until after move existing
+						// gems into place to fill gaps
+
+						// TODO: How get gemPos?
+						//      (row * self.gemsPerRow) - (self.gemsPerRow - col)
+						self.$targ.trigger("createNewGem", {
+							row: removedCount,
+							col: col,
+							gemPos: self._getGemPosition(removedCount, col),
+							callback: function (gem) {
+								newGems += gem;
+							}
+						});
 					} else {
-						console.log("=-=-==-==-==-=-=-=-=-");
-						console.log("removed count: " + removedCount);
-						console.log("move top by: " + (removedCount * self.gemDimensions));
-						// Else, move remaining gem
+//						$colGem.text(removedCount);
+//						$colGem.text("removed: " + removedCount + " move by: " + (removedCount * self.gemDimensions));
+
 						$colGem.animate({
 							top: "+=" + (removedCount * self.gemDimensions)
 						}, 800, function () {
-							console.log(this);
-							console.log(this.style.top);
+							var gemPos = parseInt(this.getAttribute("data-position"), 10),
+									newPos = gemPos + (removedCount * self.gemsPerRow);
+
+							// Update moved gem info in element attributes and gemset object
+							self._updateGemInfo(this, newPos);
+
+							// TODO: Test code
+							$(this).text(newPos);
+
 						});
 					}
+
+					// Traverse up column to next gem
+					btmMostGemPos -= self.gemsPerRow;
 				}
 
-				// Add new gems to gameboard
-				// var addGems = setTimeout(function () {
-				// 	// self.$targ.prepend(newGems);
-				// 	clearTimeout(addGems);
-				// }, 2000);
+				var addGem = setTimeout(function () {
+					// Add new gems to gameboard
+					// Append gems
+					self.$targ.trigger("addGems", { gems: newGems });
 
-				// When creating new gems, need the following:
-				// 1. Column targeting
-				// 2. # of removed gems - eg. if 2 removed gems can set row and col classes
-				//														as well as position of gem
-
+					clearTimeout(addGem);
+				}, 1000);
 			};
 
 			// Cycle through removedGems object
-			// Each column marked in object will have total # of gems removed in 
-			// that column
+			// Each gem in object is only bottom-most removed gem
+			// This serves as starting point for scan
 			for (gem in removedGems) {
 				if (removedGems.hasOwnProperty(gem)) {
-					removedGem = removedGems[gem];
-
-					moveGem(removedGem);
-
-					// newGems += ;
+					moveGem(removedGems[gem]);
 				}
 			}
 
-
-			// console.log(removedGems);
-			// console.log(newGems);
-
-			// self.$targ.prepend(newGems);
-
-			// After all gems have moved to fill in the gaps, trigger
-			// new gem creation and pass in the removed gems to they can be
-			// replaced with newly created ones
-			// self.$targ.trigger("createGems", { removedGems: removedGems });
-			
 			return self;			
 		},
 		selectTile: function (gem) {
@@ -539,7 +634,7 @@
 
 			// Check to see one has already been selected via a true/false flag
 			if (this.gemSelected) {
-				firstGem = this.targ.querySelector(".selected"),
+				firstGem = this.targ.querySelector(".selected");
 				adjacentGem = this._isAdjacentGem(firstGem, gem);
 
 				// If clicking on first selected gem, remove selected state and reset
@@ -555,12 +650,8 @@
 				}
 
 				// Since a tile is already selected, 
-				this.swapGems(firstGem, adjacentGem);
+				this.$targ.trigger("swap", { gems: [firstGem, adjacentGem] });
 			} else {
-				// MAYBE?
-				// If first selected, could find all adjacent tiles and add a class/attribute
-				// to mark it as adjacent. If not, then return false;
-
 				// Add selected state to tile
 				$gem.addClass("selected");
 
@@ -575,9 +666,7 @@
 					gemPosX = gem.style.left,
 					gemPosY = gem.style.top,
 					othergemPosX = otherGem.style.left,
-					othergemPosY = otherGem.style.top,
-					gemPos = gem.getAttribute("data-position"),
-					otherGemPos = otherGem.getAttribute("data-position");
+					othergemPosY = otherGem.style.top;
 
 			// Animate swap of tile positions
 			$(gem).animate({
@@ -588,16 +677,10 @@
 			$(otherGem).animate({
 				top: gemPosY,
 				left: gemPosX
-			}, 500, function () {
-				// Trigger these after animation finishes
+			}, 500);
 
-				// Update the swapped gems so when we scan for gem streaks, we have the correct info
-				self._updateSwappedTilesInfo(gem, otherGem);
-
-				// Trigger "swap" event and pass in row/col data as once this event is triggered
-				// we will invoke the scanRowsCols method to see if we have matches
-				self.$targ.trigger("swap", { gems: [self._fetchTileInfo(gem), self._fetchTileInfo(otherGem)] });
-			});
+			// Update the swapped gems so when we scan for gem streaks, we have the correct info
+			self._updateSwappedTilesInfo(gem, otherGem);
 
 			// Remove selected state
 			self.$targ.find(".selected").removeClass("selected");
@@ -647,8 +730,6 @@
 			return this;
 		},
 		updateScore: function (points) {
-			var currentScore = this.currentScore;
-
 			// Update currentScore
 			this.currentScore += points;
 
