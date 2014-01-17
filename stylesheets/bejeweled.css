@@ -244,6 +244,22 @@ ul, ol {
   .tile.current {
     border: 3px solid pink; }
 
+.overlay {
+  background: #fff;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  font-size: 20px;
+  font-weight: bold;
+  height: 100px;
+  width: 300px;
+  margin: -50px 0 0 -150px;
+  padding: 20px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  text-align: center;
+  z-index: 9999; }
+
 /* Scoreboard Styling
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 .score {
