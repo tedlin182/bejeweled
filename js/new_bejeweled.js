@@ -106,9 +106,6 @@
 					// created and prepended to the board
 					// Trigger another scan for streaks
 
-					// TODO: Test code
-//					self._checkForValidHorizMoves();
-					self._checkForValidVertMoves();
 					return;
 
 
@@ -187,11 +184,6 @@
 					// TODO: Testing
 					gemToScan;
 
-			console.log("[[[[[[[[[ SCANNING GEM ]]]]]]]]]");
-			console.log("- gem to scan: " + pos);
-			console.log("- current gem evaluating: " + currentGem);
-			console.log("- color to match: " + colorMatch);
-
 			// This is the non-matching gem that you will check to see if
 			// surrounding gems will make a streak
 
@@ -200,21 +192,17 @@
 
 			// If not at last column, then check gem to right
 			if (gemCol !== this.gemsPerRow) {
-				console.log("-- We are not the last column to check gem to right");
 				surroundingGems.push(rightGemPos);
 			}
 
 			// If not at first column, then check gem to left
 			if (gemCol !== 1) {
-				console.log("-- We are not the first column to check gem to left");
 				surroundingGems.push(leftGemPos);
 			}
 
 			// If a gap doesn't exist, then check top/bottom depending
 			// on if start or end
 			if (!data.gapExists) {
-				console.log("-- No gap exists so have 2 in a row.");
-
 				// Detect if gem to be scanned is above or below streak
 				// Based on if isStart and isEnd, can do the following:
 				//	1. With currentGem being provided (which is the 2nd gem in streak)
@@ -264,7 +252,6 @@
 				// scanned ISN'T the current gem being eval'd in
 				// _checkForValidHorizMoves();
 				if (!data.isStart && (gemAbovePos !== currentGem) && (gemRow !== 1)) {
-					console.log("--- The streak is not start of the column and gem is not the first in the column, so scan gem above");
 					surroundingGems.push(gemAbovePos);
 				}
 
@@ -277,13 +264,9 @@
 				// first gem of the streak AND this gem isn't the end of the row,
 				// look at gem after gem being scanned
 				if (!data.isEnd && (gemBelowPos !== (currentGem - this.gemsPerRow)) && (gemRow !== this.gemsPerRow)) {
-					console.log("--- The streak is not end of the column and gem is not the last in the column, so scan gem below");
 					surroundingGems.push(gemBelowPos);
 				}
-
 			}
-
-			console.log("---- gems to scan: " + surroundingGems);
 
 			// Define length of array here after all gems have been added
 			// to surroundingGems
@@ -291,16 +274,9 @@
 
 			// Check gems
 			for (; i <= len; i++) {
-				// TODO: Test code
-				console.log("---- scanned gem color: " + this.gemset[surroundingGems[i]][0]);
-
 				// If one of the surrounding gems matches the color to match,
 				// then valid moves exist and can break out of loop
 				if (this.gemset[surroundingGems[i]][0] === colorMatch) {
-					// TODO: Test code
-					console.log("----- IT'S A MATCH!!!");
-					$("#tile_gemPos_" + surroundingGems[i]).text("MATCH for " + pos);
-
 					this.validMovesExist = true;
 					return true;
 				}
@@ -509,18 +485,8 @@
 
 			// If no valid moves exist, create a new gameboard
 			if (!self.validMovesExist) {
-				self.$targ.append(noMovesOverlay);
-
-				self.$targ.find(".overlay").fadeOut(3000, function () {
-					// Remove overlay
-					$(this).remove();
-
-					// Empty gameboard
-					self.targ.innerHTML = "";
-
-					// Trigger create new gameboard
-					self.createGameboard();
-				});
+				// If no horizontal streaks are possible, then scan vertically
+				self._checkForValidVertMoves();
 			}
 
 			return this;
@@ -547,20 +513,13 @@
 				gemRow = gem[1];
 				gemCol = gem[2];
 
-				console.log("=-=-=-=-=-=--= NEW GEM =-=-=-=-=-=-=-=");
-				console.log("- gem pos: " + gemPos);
-				console.log("-- gem color: " + currentColor);
-				console.log("-- color to match: " + colorMatch);
-
 				// If current gem matches (this will be for streak of 2 in a row)
 				if (currentColor === colorMatch) {
-					console.log("--- 2 in a row");
 					// 2 in a row so no gap
 					gapExists = false;
 
 					// Here we are at the start of the row
 					if (gemRow === 2) {
-						console.log("---- We are at START of column");
 						self._checkSurroundingColumnGems({
 							// TODO: Test code
 							currentGem: gemPos,
@@ -572,7 +531,6 @@
 						});
 
 					} else if (gemRow === self.gemsPerRow) {
-						console.log("---- We are at END of column");
 						// Here we are at the end of the row
 						self._checkSurroundingColumnGems({
 							// TODO: Test code
@@ -584,7 +542,6 @@
 							isEnd: true
 						});
 					} else {
-						console.log("---- We are in the middle of the column");
 						self._checkSurroundingColumnGems({
 							// TODO: Test code
 							currentGem: gemPos,
@@ -608,24 +565,19 @@
 
 					// If valid moves exist
 					if (self.validMovesExist) {
-						console.log("----- Valid moves exist");
 						return this;
 					} else {
-						console.log("----- No valid moves here");
 						// If no valid moves exist, start over
 						colorMatch = currentColor;
 
 						gapExists = false;
 					}
 				} else {
-					console.log("--- No color match");
 					// If a gap already exists and color still not matching,
 					if (gapExists) {
-						console.log("---- Gap already exists so let's check 2 gems back");
 						// Check to see if current gem color matches the color
 						// of the gem 2 back
 						if (currentColor === gemColor2back) {
-							console.log("----- I match gem 2 back so reset gapExists and set gem2back to current gem");
 							self._checkSurroundingColumnGems({
 								// TODO: Test code
 								currentGem: gemPos,
@@ -644,12 +596,10 @@
 							// gap is created
 							gemColor2back = currentColor;
 						} else {
-							console.log("----- No match to 2 gems back so reset gem2back to gem before this one");
 							// If current gem color doesn't match, then update gemColor2back to gem color 1 back
 							gemColor2back = self.gemset[gemPos - self.gemsPerRow][0];
 						}
 					} else if (gemRow !== 1) {
-						console.log("---- No gap exists yet and this isn't the first gem in the column. This gem will be the gap and set gem2back to previous gem");
 						// If gap doesn't exist and current gem color doesn't match,
 						// then this current gem is creating a gap
 						gapExists = true;
@@ -664,50 +614,40 @@
 					colorMatch = currentColor;
 				}
 
-				// If at last gem in the column, clear out color to match
-//				if (gemRow === self.gemsPerRow) {
-//					console.log("- We are at last gem in column so clear out color to match and reset gap exists flag");
-//					colorMatch = null;
-//
-//					// Reset gap exists flag when start on new row
-//					gapExists = false;
-//				}
-
 				// Once hit last row, need to reset to next column until hit last
 				// column
-				if ((gemRow === self.gemsPerRow) && (gemCol < self.gemsPerRow)) {
-					console.log("- When hit last gem in column reset color to match and gap exists flag");
+				if (gemRow === self.gemsPerRow) {
 					colorMatch = null;
 
 					// Reset gap exists flag when start on new row
 					gapExists = false;
 
+					// As long as not at last column, once hit last gem in column
+					// next gem will be first gem in next column
 					if (gemCol < self.gemsPerRow) {
-						console.log("- Go to first gem in next column as long as we are not in last column");
 						gemPos = gemCol + 1;
 					}
 				} else {
-					console.log("- Go to next gem in column");
 					// Move to next gem
 					gemPos += self.gemsPerRow;
 				}
 			}
 
 			// If no valid moves exist, create a new gameboard
-//			if (!self.validMovesExist) {
-//				self.$targ.append(noMovesOverlay);
-//
-//				self.$targ.find(".overlay").fadeOut(3000, function () {
-//					// Remove overlay
-//					$(this).remove();
-//
-//					// Empty gameboard
-//					self.targ.innerHTML = "";
-//
-//					// Trigger create new gameboard
-//					self.createGameboard();
-//				});
-//			}
+			if (!self.validMovesExist) {
+				self.$targ.append(noMovesOverlay);
+
+				self.$targ.find(".overlay").fadeOut(3000, function () {
+					// Remove overlay
+					$(this).remove();
+
+					// Empty gameboard
+					self.targ.innerHTML = "";
+
+					// Trigger create new gameboard
+					self.createGameboard();
+				});
+			}
 
 			return this;
 		},
@@ -834,15 +774,7 @@
 					callback: function (gem) {
 						// Once reach last gem to create, change
 						// state of creatingGems
-//						if ((row === self.gemsPerRow) && (col === self.gemsPerRow)) {
-//							self.creatingGems = false;
-//						}
-
 						newGems += gem;
-
-						// Trigger addGems to add gem AND to scan rows and columns for
-						// streaks ONLY after done creating gems
-//						self.$targ.trigger("addGems", { gems: gem });
 					}
 				});
 
@@ -1033,6 +965,9 @@
 				}, 3000);
 			} else {
 				this.creatingGems = false;
+				// If no streaks exist, check to see if there are at least
+				// valid moves available. First check for possible horizontal streaks
+				self._checkForValidHorizMoves();
 			}
 
 			return this;
