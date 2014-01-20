@@ -59,23 +59,15 @@
 			// See if valid moves exist
 			this.validMovesExist = false;
 
-			// TODO: Test code
-			this.iteration = 0;
-
 			// Invoke _prep and _activate
-			this._prep()._activate();
+			this._activate();
 
 			// Create gameboard
 			this.createGameboard();
 
 			return this;
 		},
-		_prep: function () {
-			// Any prep work that needs to be done
-
-			return this;
-		},
-		// Here we bind event handlers	
+		// Here we bind event handlers
 		_activate: function () {
 			var self = this;
 
@@ -92,7 +84,7 @@
 				"scanRowsCols": function (e, data) {
 					// After new gems are created and added,
 					if (data) {
-						self.scanRowsCols(data.gem);
+						self.scanRowsCols(data.gems);
 					} else {
 						self.scanRowsCols();
 					}
@@ -101,13 +93,6 @@
 				"addGems": function (e, data) {
 					// Add gems to board
 					self.$targ.prepend(data.gems);
-
-					// This should be triggered after ALL gems have been
-					// created and prepended to the board
-					// Trigger another scan for streaks
-
-					return;
-
 
 					if (!self.creatingGems) {
 						self.$targ.trigger("scanRowsCols");
@@ -118,12 +103,19 @@
 					}
 				},
 				"createNewGem": function (e, data) {
-					if (data.callback) {
-						data.callback(self.createNewGems(data.row, data.col, data.gemPos));
-					}
-				},
-				"swapGems": function (e, data) {
+						var gems = data.gems,
+								callback = data.callback,
+								i = 0,
+								len = gems.length - 1,
+								newGems = "";
 
+						for (; i <= len; i++) {
+							newGems += self.createNewGems(gems[i]);
+						}
+
+						if (callback) {
+							callback(newGems);
+						}
 				},
 				// Gem swap
 				"swap": function (e, data) {
@@ -141,13 +133,10 @@
 						// After gem info has been updated along with the gemset object,
 						// scan rows and columns for streaks. Remember to scan the row and
 						// column for BOTH gems that were swapped
-						self.$targ.trigger("scanRowsCols", { gem: gem.getAttribute("data-position")});
-						self.$targ.trigger("scanRowsCols", { gem: otherGem.getAttribute("data-position")});
+						self.$targ.trigger("scanRowsCols", { gems: [gem.getAttribute("data-position"), otherGem.getAttribute("data-position")]});
 
 						// If a streak is found, then remove the gems
-						if (self.streaksExist) {
-//							self.$targ.trigger("removeGems");
-						} else {
+						if (!self.streaksExist) {
 							// Otherwise swap gems back with NO callback
 							self.swapGems(gem, otherGem);
 						}
@@ -157,8 +146,6 @@
 
 			// Bind click handlers to tiles
 			self.$targ.on("click", ".tile", function (e) {
-				console.log(self.creatingGems);
-
 				// Allow this when gems are not being moved, created, or added
 				if (!self.creatingGems) {
 					self.selectTile(this);
@@ -354,7 +341,7 @@
 			return false;
 		},
 		// Once find just one possible streak, then break out of loop
-		_checkForValidHorizMoves: function () {
+		_checkForValidHorizMoves: function (row) {
 			var self = this,
 					gapExists = false,
 					gemSet = this.gemset,
@@ -655,8 +642,8 @@
 				return (row * this.gemsPerRow) - (this.gemsPerRow - col);
 		},
 		// To easily grab gem info from gemset
-		_fetchTileInfo: function (tile) {
-			return this.gemset[tile.getAttribute("data-position")];
+		_fetchTileInfo: function (gem) {
+			return this.gemset[gem.getAttribute("data-position")];
 		},
 		// Color randomizer
 		_setGemColor: function () {
@@ -690,6 +677,7 @@
 
 			return this;
 		},
+		// Used when gems are moved to new position after gem removal
 		_updateGemInfo: function (gemToUpdate, newPos) {
 			var gemPos = gemToUpdate.getAttribute("data-position"),
 					gemInSet = this.gemset[gemPos],
@@ -735,8 +723,11 @@
 
 			return this;
 		},
-		createNewGems: function (row, col, gemPos) {
-			var gemXPos = (col - 1) * this.gemDimensions,
+		createNewGems: function (data) {
+			var row = data.row,
+					col = data.col,
+					gemPos = data.gemPos,
+					gemXPos = (col - 1) * this.gemDimensions,
 					gemYPos = (row - 1) * this.gemDimensions,
 					gemRow = "row_" + row,
 					gemCol = "col_" + col,
@@ -760,22 +751,17 @@
 					col = 1,
 					row = 1,
 					gemPos = 1,
-					newGems = "";
+					gemsToCreate = [];
 
 			// Start from col 1 and go to max # gems per row
 			// Once reach end, reset and go to next row until reach
 			// last row (ie. row === this.gemsPerRow)
 			while (col <= self.gemsPerRow) {
-				// Trigger createNewGem event and pass in
-				self.$targ.trigger("createNewGem", {
+				// Add new gem to collection
+				gemsToCreate.push({
 					row: row,
 					col: col,
-					gemPos: gemPos,
-					callback: function (gem) {
-						// Once reach last gem to create, change
-						// state of creatingGems
-						newGems += gem;
-					}
+					gemPos: gemPos
 				});
 
 				// Increment gem position
@@ -794,9 +780,17 @@
 				}
 			}
 
-			// Trigger addGems to add gem AND to scan rows and columns for
-			// streaks ONLY after done creating gems
-			self.$targ.trigger("addGems", { gems: newGems });
+			// Trigger createNewGem
+			self.$targ.trigger("createNewGem", {
+				gems: gemsToCreate,
+				callback: function (gems) {
+					// Once reach last gem to create, change
+					// state of creatingGems
+					// Trigger addGems to add gem AND to scan rows and columns for
+					// streaks ONLY after done creating gems
+					self.$targ.trigger("addGems", { gems: gems });
+				}
+			});
 
 			return self;
 		},
@@ -805,6 +799,7 @@
 					gemRow = gem[1],
 					startGem = gemPos - (gem[2] - 1),
 					$currentGem,
+					islastGem,
 					colorMatch,
 					currentColor,
 					col = 1,
@@ -813,6 +808,7 @@
 			while (col <= this.gemsPerRow) {
 				$currentGem = $("#tile_gemPos_" + startGem);
 				currentColor = this.gemset[startGem][0];
+				islastGem = col === this.gemsPerRow;
 
 				// If current gem color matches color to match
 				if (currentColor === colorMatch) {
@@ -821,7 +817,7 @@
 					// If last gem in row AND streak is less than 3,
 					// don't mark as match and clear matched gems not part
 					// of streak
-					if ((col === this.gemsPerRow) && (streak < 3)) {
+					if (islastGem && (streak < 3)) {
 						$(".gem_match.row_" + gemRow).not(".remove").removeClass("gem_match");
 					} else {
 						// Mark gem as a match to the previous one
@@ -855,7 +851,7 @@
 
 					// Finally mark current gem as a match so it can be
 					// detected when a streak occurs UNLESS it's the last gem in row
-					if (col !== this.gemsPerRow) {
+					if (!islastGem) {
 						$currentGem.addClass("gem_match");
 					}
 				}
@@ -940,11 +936,12 @@
 		scanRowsCols: function (gemPos) {
 			var self = this,
 					i = 1,
-					rowStartGem = i;
+					rowStartGem = i,
+					max = this.gemsPerRow;
 
 			// If no row or col param is specified, then scan all rows and columns
 			if (!gemPos) {
-				for (; i <= this.gemsPerRow; i++) {
+				for (; i <= max; i++) {
 					this.horizStreakCheck(rowStartGem);
 					this.vertStreakCheck(i);
 
@@ -952,17 +949,20 @@
 					rowStartGem += this.gemsPerRow;
 				}
 			} else {
-				this.horizStreakCheck(gemPos);
-				this.vertStreakCheck(gemPos);
+				i = 0;
+				max = gemPos.length - 1;
+
+				for (; i <= max; i++) {
+					this.horizStreakCheck(gemPos[i]);
+					this.vertStreakCheck(gemPos[i]);
+				}
 			}
 
 			// If streaks exist, trigger removeGems
 			if (this.streaksExist) {
-				this.iteration++;
-
 				setTimeout(function () {
 					self.$targ.trigger("removeGems");
-				}, 3000);
+				}, 2000);
 			} else {
 				this.creatingGems = false;
 				// If no streaks exist, check to see if there are at least
@@ -1020,12 +1020,10 @@
 		},
 		moveGems: function (removedGems) {
 			var self = this,
+					gemsToCreate = [],
 					gem,
-					newGems = "";
-
-			console.log("=-=-=-==--==- MOVE GEMS =-=-=-=-=-=-");
-			console.log("iteration: " + self.iteration);
-			console.log(removedGems);
+					newGems = "",
+					movingGemsCount = 0;
 
 			// As cycle through all removedGems, each gem is passed
 			// into moveGem to help shift all gems in the the removed gem column
@@ -1034,8 +1032,13 @@
 				var col = gemCol[1],
 						btmMostGemPos = gemCol[2],
 						$colGem,
+						i = 0,
+						numGemsToCreate,
 						removedCount = 0,
 						newGems = "";
+
+				// Set creatingGems flag to true
+				this.creatingGems = true;
 
 				// Another option that will avoid having to deal with changing
 				// element orders when swap and query DOM is to just traverse through
@@ -1056,51 +1059,75 @@
 						// Create new gems but don't append until after move existing
 						// gems into place to fill gaps
 
-						// TODO: How get gemPos?
-						//      (row * self.gemsPerRow) - (self.gemsPerRow - col)
-						// This needs to happen after gems have all moved
-						self.$targ.trigger("createNewGem", {
+						// TODO: Issue
+						// Basically this should collected the gems that were removed
+						// from each column, and then pass that data when triggering
+						// the createNewGem event AFTER scanning of column is done.
+
+						gemsToCreate.push({
 							row: removedCount,
 							col: col,
-							gemPos: self._getGemPosition(removedCount, col),
-							callback: function (gem) {
-								newGems += gem;
-							}
+							gemPos: self._getGemPosition(removedCount, col)
 						});
+
+						if (btmMostGemPos < self.gemsPerRow) {
+							self.creatingGems = true;
+
+							self.$targ.trigger("createNewGem", {
+								gems: gemsToCreate,
+								callback: function (gems) {
+									self.creatingGems = false;
+
+									self.$targ.trigger("addGems", { gems: gems });
+								}
+							});
+						}
+
 					} else {
+					movingGemsCount++;
+
 						// Else move the unremoved gem down
+					var gemPos = parseInt($colGem.attr("data-position"), 10),
+							newPos = gemPos + (removedCount * self.gemsPerRow);
+
+						// Update moved gem info in element attributes and gemset object
+						self._updateGemInfo($colGem[0], newPos);
+
+						// TODO: Test code
+						$colGem.html("orig pos: " + gemPos + "<br \/>new pos: " + newPos + "<br \/>removed count: " + removedCount + "<br \/>move by: " + (removedCount * self.gemDimensions) + "<br \/>color in gemset: " + self.gemset[newPos][0]);
+
 						$colGem.animate({
 							top: "+=" + (removedCount * self.gemDimensions)
-						}, 1500, function () {
-							var gemPos = parseInt(this.getAttribute("data-position"), 10),
-									newPos = gemPos + (removedCount * self.gemsPerRow);
+						}, {
+							duration: 1500,
+							complete: function () {
+								movingGemsCount--;
 
-							// Update moved gem info in element attributes and gemset object
-							self._updateGemInfo(this, newPos);
+								// Since using animation to move gems, we need to
+								// only trigger new gem creation and addition when
+								// last gem as finished moving. Otherwise, when you trigger
+								// createNewGem, the this.gemset will update the gem colors
+								// with the new ones generated, and then the gems being moved
+								// will reference those when triggering updateGeminfo
+								if (movingGemsCount < 1) {
+									self.creatingGems = true;
 
-							// TODO: Test code
-							$(this).html("orig pos: " + gemPos + "<br \/>new pos: " + newPos + "<br \/>removed count: " + removedCount + "<br \/>move by: " + (removedCount * self.gemDimensions) + "<br \/>color in gemset: " + self.gemset[newPos][0]);
+									self.$targ.trigger("createNewGem", {
+										gems: gemsToCreate,
+										callback: function (gems) {
+											self.creatingGems = false;
 
+											self.$targ.trigger("addGems", { gems: gems });
+										}
+									});
+								}
+							}
 						});
 					}
 
 					// Traverse up column to next gem
 					btmMostGemPos -= self.gemsPerRow;
 				}
-
-				var addGem = setTimeout(function () {
-					// Add new gems to gameboard
-					// Append gems
-					self.$targ.trigger("addGems", {
-						gems: newGems,
-						callback: function () {
-//							console.log("This is the updated gem after move and add");
-//							console.log(self.gemset);
-						}
-					});
-
-					clearTimeout(addGem);
-				}, 3000);
 			};
 
 			// Cycle through removedGems object
@@ -1164,6 +1191,7 @@
 				top: othergemPosY,
 				left: othergemPosX
 			}, 500, function () {
+				// TODO: Test code
 				$(this).text(otherGemPos);
 			});
 
@@ -1183,7 +1211,6 @@
 				// TODO: Test code
 				$(this).text(gemPos);
 			});
-
 
 			// Remove selected state
 			self.$targ.find(".selected").removeClass("selected");
