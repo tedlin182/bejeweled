@@ -14,7 +14,7 @@
 			this.targ = this.$targ[0] || null;
 
 			// Gameboard will always be a square, so # of rows = #of cols;
-			this.gemsPerRow = opts.gemsPerRow || 4;
+			this.gemsPerRow = opts.gemsPerRow || 8;
 			this.gemDimensions = opts.gemDimensions || 50;
 			this.gemColors = opts.tileColors || ["blue", "green", "yellow", "red", "grey", "orange", "magenta", "black", "lightblue"];
 			this.scoreboard = opts.scoreboard || null;
