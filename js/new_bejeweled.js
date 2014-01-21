@@ -79,16 +79,47 @@
 				},
 				// Adds gem to gameboard
 				"addGems": function (e, data) {
+					var movingGemsCount = 0;
+
 					// Add gems to board
 					self.$targ.prepend(data.gems);
 
-					if (!self.creatingGems) {
-						self.$targ.trigger("scanRowsCols");
+					[].forEach.call(self.$targ.find(".move"), function (gem, idx, arr) {
+						var $this = $(gem),
+								gemInGemset = self.gemset[gem.getAttribute("data-position")],
+								gemPosY = (gemInGemset[1] - 1) * self.gemDimensions;
 
-						if (data.callback) {
-							data.callback();
-						}
-					}
+						movingGemsCount++;
+
+						$this.removeClass("move");
+
+						$this.animate({
+							top: gemPosY + "px"
+						}, {
+							duration: 800,
+							complete: function () {
+
+								movingGemsCount--;
+
+								if (movingGemsCount < 1) {
+									self.$targ.trigger("scanRowsCols");
+
+									if (data.callback) {
+										data.callback();
+									}
+								}
+							}
+						});
+					});
+
+
+//					if (!self.creatingGems) {
+//						self.$targ.trigger("scanRowsCols");
+//
+//						if (data.callback) {
+//							data.callback();
+//						}
+//					}
 				},
 				"createNewGem": function (e, data) {
 						var gems = data.gems,
@@ -129,6 +160,8 @@
 						if (!self.streaksExist) {
 							// Otherwise swap gems back with NO callback
 							self.swapGems(gem, otherGem);
+
+							self.gemSelected = false;
 						}
 					});
 				}
@@ -650,6 +683,7 @@
 					gemPos = data.gemPos,
 					gemXPos = (col - 1) * this.gemDimensions,
 					gemYPos = (row - 1) * this.gemDimensions,
+					startYPos = (this.gemsPerRow - row) * this.gemDimensions,
 					gemRow = "row_" + row,
 					gemCol = "col_" + col,
 					gemColor = this._setGemColor(),
@@ -661,7 +695,7 @@
 
 			// Need reference to gems removed and new gems take their spot
 			// both in the DOM and in this.gemset
-			gem = "<div id=\"tile_gemPos_" + gemPos + "\" class=\"tile " + gemRow + " " + gemCol + "\" style=\"background-color: " + gemColor + "; top: " + gemYPos+ "px; left: " + gemXPos + "px; width: " + this.gemDimensions + "px; height: " + this.gemDimensions + "px; \" data-position=\"" + gemPos + "\"><\/div>";
+			gem = "<div id=\"tile_gemPos_" + gemPos + "\" class=\"tile " + gemRow + " " + gemCol + " move\" style=\"background-color: " + gemColor + "; top: -" + startYPos + "px; left: " + gemXPos + "px; width: " + this.gemDimensions + "px; height: " + this.gemDimensions + "px; \" data-position=\"" + gemPos + "\"><\/div>";
 
 			// so can animate down
 			return gem;
@@ -1010,7 +1044,7 @@
 						$colGem.animate({
 							top: "+=" + (removedCount * self.gemDimensions)
 						}, {
-							duration: 800,
+							duration: 600,
 							complete: function () {
 								// Once a gem is done moving, decrement count
 								movingGemsCount--;
