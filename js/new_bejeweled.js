@@ -903,6 +903,9 @@
 								// with the new ones generated, and then the gems being moved
 								// will reference those when triggering updateGeminfo
 								if (movingGemsCount < 1) {
+									// Reset removedGems object
+									self.removedGems = {};
+
 									// Once we finish moving all the gems, start creating
 									// new gems and set flag to true
 									self.creatingGems = true;
