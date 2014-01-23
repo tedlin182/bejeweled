@@ -564,7 +564,7 @@
 				// both in the DOM and in this.gemset
 				// Gems starting "top" position is above gameboard
 				// Once added to the board, we will trigger the gems to move
-				gemsToBeAdded += "<div id=\"tile_gemPos_" + gemPos + "\" class=\"tile row_" + row + " col_" + col + " move\" style=\"background-color: " + gemColor + "; top: -" + (this.gemsPerRow * this.gemDimensions) + "px; left: " + gemXPos + "px; width: " + this.gemDimensions + "px; height: " + this.gemDimensions + "px; \" data-position=\"" + gemPos + "\">" + gemPos + "<\/div>";
+				gemsToBeAdded += "<div id=\"tile_gemPos_" + gemPos + "\" class=\"tile row_" + row + " col_" + col + " move\" style=\"background-color: " + gemColor + "; top: -" + (this.gemsPerRow * this.gemDimensions) + "px; left: " + gemXPos + "px; width: " + this.gemDimensions + "px; height: " + this.gemDimensions + "px; \" data-position=\"" + gemPos + "\"><\/div>";
 			}
 
 			// Add gems to
