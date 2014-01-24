@@ -1,19 +1,10 @@
 /**
  * Bejeweled Game
  *
- * 	=> Need to track the following
- * 			- removed gem count
- * 			- moving gems count
- * 			- if creating gems
- * 				=> Set to true when just start creating gems
- * 				=> Set to false when finished adding gems
- * 			- if a streak exists
- * 				=> Set to true when scanning rows and columns
- * 				=> Set to false when those gems are ALL removed (this will happen
- * 					 after removeGems has completed and removedGemCount === 0)
- * 			- if valid moves exist
- *				=> Set to true during _checkForValidMoves()
- *				=> Set to false when
+ * 	@options:
+ * 		- # of gems per row (@gemsPerRow)
+ * 		- Colors of gems (@gemColors)
+ * 		- Element for scoreboard (@scoreboard)
  */
 
 
@@ -40,7 +31,7 @@
 			this.gemDimensions = opts.gemDimensions || 50;
 
 			// List of possible colors for gems
-			this.gemColors = opts.tileColors || ["blue", "green", "yellow", "red", "grey", "orange", "magenta", "black", "lightblue"];
+			this.gemColors = opts.gemColors || ["blue", "green", "yellow", "red", "grey", "orange", "magenta", "black", "lightblue"];
 
 			// The scoreboard element to trigger updateScore event
 			this.scoreboard = opts.scoreboard || null;
@@ -1009,8 +1000,6 @@
 			return self;
 		}
 	};
-
-
 
 
 	// Scoreboard constructor
