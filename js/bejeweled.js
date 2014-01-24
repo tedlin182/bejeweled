@@ -1,13 +1,13 @@
 /**
- * Bejeweled Game
+ * 	Bejeweled Game
+ *  created by Ted Lin, tedlin182<at>gmail<dot>com
+ *  last modified - 01.24.14
  *
  * 	@options:
  * 		- # of gems per row (@gemsPerRow)
  * 		- Colors of gems (@gemColors)
  * 		- Element for scoreboard (@scoreboard)
  */
-
-
 
 (function (global, $, undefined) {
 	var noMovesOverlay = "<div class=\"overlay\"><p>No moves left.</p><\/div>";
@@ -131,9 +131,9 @@
 		},
 		_isAdjacentGem: function (gem, otherGem) {
 			var firstGemPos = gem.getAttribute("data-position"),
-				secondGemPos = otherGem.getAttribute("data-position"),
-				gemPosGap = Math.abs(secondGemPos - firstGemPos),
-				isAdjacent = null;
+					secondGemPos = otherGem.getAttribute("data-position"),
+					gemPosGap = Math.abs(secondGemPos - firstGemPos),
+					isAdjacent = null;
 
 			// If the gap is equal to 1, then it's left or right
 			// If the gap is equal to the # of tiles per row, it's on the top/bottom
@@ -195,7 +195,8 @@
 		_shiftGems: function () {
 			var self = this,
 					gemsToCreate = [],
-					col;
+					col,
+					gemsToMove = false;
 
 			// This is run for each column
 			var markForMove = function (gemCol, removedGems) {
@@ -225,6 +226,9 @@
 							gemPos: ((removedCount - 1) * self.gemsPerRow) + colNum
 						});
 					} else {
+						// Flip gemsToMove flag to true
+						gemsToMove = true;
+
 						// Update gem attribute with new position
 						self._updateGemInfo(gem, (i + (removedCount  * self.gemsPerRow)));
 
@@ -245,36 +249,43 @@
 				}
 			}
 
-			// Trigger moveGems once done updating gems
-			self.$targ.trigger("moveGems", {
-				callback: function (gem) {
-					// New gems for each column will then be created
-					self.$targ.trigger("createNewGem", { gems: gemsToCreate });
+			// If there are gems to move down
+			if (gemsToMove) {
+				// Trigger moveGems once done updating gems
+				self.$targ.trigger("moveGems", {
+					callback: function (gem) {
+						// Once all gems have been removed and remaining gems have been
+						// moved into place, clear out removeGems object
+						self.removedGems = {};
 
-					// Once new gems have been added, trigger them to move into place
-					self.$targ.trigger("moveGems");
-				}
-			});
+						// New gems for each column will then be created
+						self.$targ.trigger("createNewGem", { gems: gemsToCreate });
+					}
+				});
+			} else {
+				// New gems for each column will then be created
+				self.$targ.trigger("createNewGem", { gems: gemsToCreate });
+			}
 
 			return self;
 		},
 		_checkSurroundingGems: function (data) {
 			var pos = data.gemPos,
-				currentGem = data.currentGem,
-				row = this.gemset[pos][1],
-				col = this.gemset[pos][2],
-				rowCol = data.isColumnScan ? col : row,
-				prevGem = pos - 1,
-				nextGem = pos + 1,
-				gemAbove = pos - this.gemsPerRow,
-				gemBelow = pos + this.gemsPerRow,
-				isNotFirstGem = col !== 1,
-				isNotLastGem = col !== this.gemsPerRow,
-				surroundingGems = [],
-				notLastRowCol = rowCol !== this.gemsPerRow,
-				notFirstRowCol = rowCol > 1,
-				i = 0,
-				len;
+					currentGem = data.currentGem,
+					row = this.gemset[pos][1],
+					col = this.gemset[pos][2],
+					rowCol = data.isColumnScan ? col : row,
+					prevGem = pos - 1,
+					nextGem = pos + 1,
+					gemAbove = pos - this.gemsPerRow,
+					gemBelow = pos + this.gemsPerRow,
+					isNotFirstGem = col !== 1,
+					isNotLastGem = col !== this.gemsPerRow,
+					surroundingGems = [],
+					notLastRowCol = rowCol !== this.gemsPerRow,
+					notFirstRowCol = rowCol > 1,
+					i = 0,
+					len;
 
 			// If scanning column, reset variables to correspond
 			// appropriately to gems in column
@@ -352,16 +363,16 @@
 				gem = self.gemset[gemPos];
 				currentColor = gem[0];
 
+				// If doing column scan redefine these variables
 				rowColToScan = isColumnScan ? gem[1] : gem[2];
 				nextGemInRowCol = isColumnScan ? gemPos + self.gemsPerRow : gemPos + 1;
-
-				// If doing column scan redefine these variables
 				prevGem = isColumnScan ? gemPos - self.gemsPerRow : gemPos - 1;
 				gemTwoPrev = isColumnScan ? gemPos - (2 * self.gemsPerRow) : gemPos - 2;
 
 				isStart = rowColToScan === 2;
 				isEnd = rowColToScan === self.gemsPerRow;
 
+				// Params to pass to _checkSurroundingGems
 				gemData = {
 					currentGem: gemPos,
 					gapExists: gapExists,
@@ -566,7 +577,7 @@
 			this.$targ.append(gemsToBeAdded);
 //
 //			// Once gems have been added, trigger moveGems
-//			this.$targ.trigger("moveGems");
+			this.$targ.trigger("moveGems");
 
 			// Need to also store gemPos in $.data so can't be modified
 			return this;
@@ -609,7 +620,7 @@
 			self.$targ.trigger("createNewGem", { gems: gemsToCreate });
 
 			// Once gems have been added, trigger moveGems
-			self.$targ.trigger("moveGems");
+//			self.$targ.trigger("moveGems");
 
 			return self;
 		},
@@ -694,6 +705,7 @@
 
 			// If streaks exist, trigger "removeGems"
 			if (this.streaksExist) {
+				// Trigger removeGems
 				this.$targ.trigger("removeGems");
 			} else {
 				this.creatingGems = false;
@@ -864,9 +876,10 @@
 
 			// Cycle through each gem to be removed
 			[].forEach.call(self.$targ.find(".remove"), function (removedGem, idx, arr) {
-				var gemPos = removedGem.getAttribute("data-position"),
+				var gemPos = parseInt(removedGem.getAttribute("data-position"), 10),
 						gem = self.gemset[gemPos],
-						gemCol = gem[2];
+						gemCol = gem[2],
+						removedGemsCol = self.removedGems[gemCol];
 
 				// Null out color for gem in gemset
 				// Will help in detecting removed gems in _shiftGems
@@ -875,14 +888,16 @@
 				// Increment removedGemsCount to track progress of removal
 				self.removedGemsCount++;
 
-				// We only care about the gems removed per column since we shift
-				// unremoved gems down after gems are removed
-				self.removedGems[gemCol] = {
-					row: gem[1],
-					col: gemCol,
-					gemPos: gemPos
-				};
+				// We want to store only the bottom-most removed gem in each column
+				if (!removedGemsCol || (removedGemsCol && (gemPos > removedGemsCol.gemPos))) {
+					self.removedGems[gemCol] = {
+						row: gem[1],
+						col: gemCol,
+						gemPos: gemPos
+					};
+				}
 
+				// Remove gem
 				$(removedGem).fadeOut({
 					duration: 800,
 					complete: function () {
@@ -978,6 +993,12 @@
 
 					// Once all gems have finished swapping
 					if (self.swappingGemsCount < 1) {
+						// Remove selected and swap state
+						self.$targ.find(".selected").removeClass("selected swap");
+
+						// Reset selected state
+						self.gemSelected = false;
+
 						// Update gemset info and both gem attributes
 						self._updateSwappedTilesInfo(gem, this);
 
@@ -990,12 +1011,6 @@
 					}
 				}
 			});
-
-			// Remove selected and swap state
-			self.$targ.find(".selected").removeClass("selected swap");
-
-			// Reset selected state
-			self.gemSelected = false;
 
 			return self;
 		}
