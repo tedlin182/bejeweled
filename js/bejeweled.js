@@ -98,15 +98,14 @@
 					self.createNewGems(data.gems);
 				},
 				"moveGems": function (e, data) {
-					self.moveGems();
+					var callback = data ? data.callback : null;
+
+					self.moveGems(callback);
 				},
 				"scanRowsCols": function (e, data) {
-					// After new gems are created and added,
-					if (data) {
-						self.scanRowsCols(data.gems);
-					} else {
-						self.scanRowsCols();
-					}
+					var gems = data ? data.gems : null;
+
+					self.scanRowsCols(gems);
 				},
 				// This removes the streaks of gems
 				"removeGems": function (e, data){
@@ -204,6 +203,7 @@
 		},
 		_shiftGems: function () {
 			var self = this,
+					gemsToCreate = [],
 					col;
 
 			// This is run for each column
@@ -211,8 +211,7 @@
 				var i = parseInt(removedGems.gemPos, 10),
 						colNum,
 						gem,
-						removedCount = 0,
-						gemsToCreate = [];
+						removedCount = 0;
 
 				// Start at bottom-most removed gem in column and traverse
 				// through gems
@@ -246,9 +245,6 @@
 					// in column
 					i -= self.gemsPerRow;
 				}
-
-				// New gems for each column will then be created
-				self.$targ.trigger("createNewGem", { gems: gemsToCreate });
 			};
 
 			// Scan this.removedGems object to see what gems have been removed
@@ -259,7 +255,15 @@
 			}
 
 			// Trigger moveGems once done updating gems
-			self.$targ.trigger("moveGems");
+			self.$targ.trigger("moveGems", {
+				callback: function (gem) {
+					// New gems for each column will then be created
+					self.$targ.trigger("createNewGem", { gems: gemsToCreate });
+
+					// Once new gems have been added, trigger them to move into place
+					self.$targ.trigger("moveGems");
+				}
+			});
 
 			return self;
 		},
@@ -618,7 +622,7 @@
 
 			return self;
 		},
-		moveGems: function () {
+		moveGems: function (callback) {
 			var self = this;
 
 			// Move all gems into place
@@ -645,16 +649,21 @@
 						// Once finished moving all gems, trigger scan
 						// rows
 						if (self.movingGemsCount < 1) {
-							// Done moving gems
-							self.creatingGems = false;
+							// If a callback exists, invoke it
+							if (callback) {
+								callback($gem);
+							} else {
+								// Done moving gems
+								self.creatingGems = false;
 
-							// Reset streaksExist flag
-							self.streaksExist = false;
+								// Reset streaksExist flag
+								self.streaksExist = false;
 
-							// Need to add gems, trigger add gems
+								// Need to add gems, trigger add gems
 
-							// Else, trigger scanRowCols
-							self.$targ.trigger("scanRowsCols");
+								// Else, trigger scanRowCols
+								self.$targ.trigger("scanRowsCols");
+							}
 						}
 					}
 				});
@@ -796,14 +805,6 @@
 					streak = 1;
 
 			while (gemNumInCol <= this.gemsPerRow) {
-				if (!this.gemset[currentGemPos]) {
-					console.log("undefined");
-					console.log(currentGemPos);
-					console.log(gemPos);
-					console.log(gemToScan);
-					console.log("=-=-==-=-==");
-				}
-
 				$currentGem = $(".row_" + gemNumInCol + ".col_" + gemCol);
 				gem = this.gemset[currentGemPos];
 				currentColor = gem[0];
